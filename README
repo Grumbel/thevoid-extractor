@@ -1,0 +1,20 @@
+The Void Extractor
+==================
+
+Extractor for the data files of the game "The Void". 
+
+Usage
+=====
+
+You can extract everything (--extract-all), name files to extract
+explicitly or extract by glob pattern (--glob "*.ogg"). Example usage
+would look like this:
+
+  ./thevoid-extractor.py \
+    -v "/win/Program Files/The Void/data/Sounds.vfs" \
+    --extract --targetdir data/ -g "*.ogg"
+
+If --targetdir is not given files will be extracted to the current
+working directory.
+
+# EOF #

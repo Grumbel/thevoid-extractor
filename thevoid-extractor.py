@@ -15,6 +15,7 @@
 ##  You should have received a copy of the GNU General Public License
 ##  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import fnmatch
 import os
 import sys
 import struct
@@ -53,44 +54,69 @@ if not options.vfs:
     print "error: vfs file not given"
     exit(1)
 
-def process_files(fin, dir_count, file_count):
+def process_dir(fin, parent, dir_count, file_count, lst):
     # process files
-    for i in range(root_file_count):
+    for i in range(file_count):
         len = struct.unpack("B", fin.read(1))[0]
         dir_entry = fin.read(len) # filename
         
+        size = struct.unpack("I", fin.read(4))[0]
+        unknown3 = struct.unpack("I", fin.read(4))[0]
+        offset = struct.unpack("I", fin.read(4))[0]
+        zero = struct.unpack("I", fin.read(4))[0]
         unknown1 = struct.unpack("I", fin.read(4))[0]
         unknown2 = struct.unpack("I", fin.read(4))[0]
-        unknown3 = struct.unpack("I", fin.read(4))[0]
-        unknown4 = struct.unpack("I", fin.read(4))[0]
-        unknown5 = struct.unpack("I", fin.read(4))[0]
-        unknown6 = struct.unpack("I", fin.read(4))[0]
 
-        print "File: %-55s - %6d %8d %8d - %2d %10d %10d" % (dir_entry,
-                                                  unknown1, unknown2, unknown2,
-                                                  unknown4, unknown5, unknown6)
+        dir_entry = os.path.join(parent, dir_entry)
+
+        lst.append((dir_entry, offset, size))
+
+        #print "%-55s - %6d %8d %8d - %2d %10d %10d" % (dir_entry,
+        #                                                     size, dummy, offset,
+        #                                                     zero, unknown1, unknown2)
         
     # process dirs
-    for j in range(root_dir_count):
+    for j in range(dir_count):
         len = struct.unpack("B", fin.read(1))[0]
         file_entry = fin.read(len)
         
-        print "Dir:", file_entry
-        
-        dir_count  = struct.unpack("I", fin.read(4))[0]
-        file_count = struct.unpack("I", fin.read(4))[0]
-        print file_count, dir_count
+        next_dir_count  = struct.unpack("I", fin.read(4))[0]
+        next_file_count = struct.unpack("I", fin.read(4))[0]
 
-        for i in range(file_count):
-            len = struct.unpack("B", fin.read(1))[0]
-            print len, "'%s'" % fin.read(len) # filename
-            fin.read(24)   
+        process_dir(fin, os.path.join(parent, file_entry), next_dir_count, next_file_count, lst)
+
+def extract_file(fin, outfile, offset, size):
+    fin.seek(offset)
+    data = fin.read(size)
+
+    if options.stdout:
+        sys.stdout.write(data)
+    else:
+        print "extracting \"%s\"" % outfile
+        outdir = os.path.dirname(outfile)
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
+        with open(outfile, "wb") as fout:
+            fout.write(data)  
 
 with open(options.vfs, "rb") as fin:
-    print fin.read(4)
+    magic = fin.read(4)
     root_dir_count  = struct.unpack("I", fin.read(4))[0]
     root_file_count = struct.unpack("I", fin.read(4))[0]
 
-    process_files(fin, root_dir_count, root_file_count)
+    (parent, ext) = os.path.splitext(os.path.basename(options.vfs))
+
+    lst = []
+    process_dir(fin, parent, root_dir_count, root_file_count, lst)
+
+    if options.extract_files:
+        for (filename, offset, size) in lst:
+            if options.extract_all or \
+               (options.glob_pattern and fnmatch.fnmatch(filename, options.glob_pattern) ) or \
+               filename in args:
+                extract_file(fin, os.path.join(options.targetdir, filename), offset, size)
+    else:
+        for (filename, offset, size) in lst:
+            print "%6d %6d %-55s" % (offset, size, filename)
 
 # EOF #
