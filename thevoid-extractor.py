@@ -23,11 +23,11 @@ from optparse import OptionParser
 
 parser = OptionParser("Usage: %prog [OPTIONS] [FILES]")
 
-parser.add_option("-l", "--list", 
+parser.add_option("-l", "--list",
                   dest="list_files", action="store_true",
                   help="List all resource files")
 
-parser.add_option("-e", "--extract", 
+parser.add_option("-e", "--extract",
                   dest="extract_files", action="store_true",
                   help="Extract resource files")
 
@@ -37,21 +37,21 @@ parser.add_option("-t", "--targetdir", dest="targetdir", default=".",
 parser.add_option("-a", "--extract-all", metavar="DIR",
                   dest="extract_all", action="store_true",
                   help="Extract all resource files")
-parser.add_option("-s", "--stdout", 
+parser.add_option("-s", "--stdout",
                   dest="stdout", action="store_true",
                   help="Extract data to stdout")
 parser.add_option("-g", "--glob", metavar="PATTERN",
                   dest="glob_pattern",
                   help="Select files by glob pattern")
 
-parser.add_option("-v", "--vfs", 
-                  dest="vfs", 
+parser.add_option("-v", "--vfs",
+                  dest="vfs",
                   help="Prefix of the resource files, can be 'resources' or 'german'")
 
 (options, args) = parser.parse_args()
 
 if not options.vfs:
-    print "error: vfs file not given"
+    print("error: vfs file not given")
     exit(1)
 
 def process_dir(fin, parent, dir_count, file_count, lst):
@@ -59,7 +59,7 @@ def process_dir(fin, parent, dir_count, file_count, lst):
     for i in range(file_count):
         len = struct.unpack("B", fin.read(1))[0]
         dir_entry = fin.read(len) # filename
-        
+
         size = struct.unpack("I", fin.read(4))[0]
         unknown3 = struct.unpack("I", fin.read(4))[0]
         offset = struct.unpack("I", fin.read(4))[0]
@@ -74,12 +74,12 @@ def process_dir(fin, parent, dir_count, file_count, lst):
         #print "%-55s - %6d %8d %8d - %2d %10d %10d" % (dir_entry,
         #                                                     size, dummy, offset,
         #                                                     zero, unknown1, unknown2)
-        
+
     # process dirs
     for j in range(dir_count):
         len = struct.unpack("B", fin.read(1))[0]
         file_entry = fin.read(len)
-        
+
         next_dir_count  = struct.unpack("I", fin.read(4))[0]
         next_file_count = struct.unpack("I", fin.read(4))[0]
 
@@ -92,12 +92,12 @@ def extract_file(fin, outfile, offset, size):
     if options.stdout:
         sys.stdout.write(data)
     else:
-        print "extracting \"%s\"" % outfile
+        print("extracting \"%s\"" % outfile)
         outdir = os.path.dirname(outfile)
         if not os.path.exists(outdir):
             os.makedirs(outdir)
         with open(outfile, "wb") as fout:
-            fout.write(data)  
+            fout.write(data)
 
 with open(options.vfs, "rb") as fin:
     magic = fin.read(4)
@@ -117,6 +117,6 @@ with open(options.vfs, "rb") as fin:
                 extract_file(fin, os.path.join(options.targetdir, filename), offset, size)
     else:
         for (filename, offset, size) in lst:
-            print "%6d %6d %-55s" % (offset, size, filename)
+            print("%6d %6d %-55s" % (offset, size, filename))
 
 # EOF #
