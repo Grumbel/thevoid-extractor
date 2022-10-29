@@ -91,7 +91,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("-g", "--glob", metavar="PATTERN", dest="glob_pattern",
                         help="Extract files by glob pattern")
     parser.add_argument("-v", "--vfs", dest="vfs",
-                        help="Prefix of the resource files, can be 'resources' or 'german'")
+                        help=".vfs file to process (e.g. \".../The Void/data/Sound.vfs\")")
 
     return parser.parse_args(argv[1:])
 
