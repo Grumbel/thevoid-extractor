@@ -114,7 +114,7 @@ def main():
         (parent, ext) = os.path.splitext(os.path.basename(options.vfs))
 
         lst = []
-        process_dir(fin, parent, root_dir_count, root_file_count, lst)
+        process_dir(fin, parent.encode(), root_dir_count, root_file_count, lst)
 
         if options.extract_files:
             for (filename, offset, size) in lst:
