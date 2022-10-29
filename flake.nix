@@ -44,6 +44,15 @@
             ];
           };
         };
+
+        apps = rec {
+          default = thevoid-extractor;
+
+          thevoid-extractor = flake-utils.lib.mkApp {
+            drv = packages.thevoid-extractor;
+            exePath = "/bin/thevoid-extractor";
+          };
+        };
       }
     );
 }
