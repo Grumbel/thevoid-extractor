@@ -17,11 +17,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+from typing import Sequence
+
 import fnmatch
 import os
 import sys
 import struct
-from optparse import OptionParser
+import argparse
 
 
 def process_dir(fin, parent, dir_count, file_count, lst):
@@ -71,68 +73,61 @@ def extract_file(fin, outfile, offset, size, options):
             fout.write(data)
 
 
-def parse_args():
-    parser = OptionParser("Usage: %prog [OPTIONS] [FILES]")
+def parse_args(argv: Sequence[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="'The Void' datafile extraction tool")
 
-    parser.add_option("-l", "--list",
-                      dest="list_files", action="store_true",
-                      help="List all resource files")
+    parser.add_argument("FILE", nargs='*')
+    parser.add_argument("-l", "--list", dest="list_files", action="store_true",
+                        help="List all resource files")
+    parser.add_argument("-e", "--extract", dest="extract_files", action="store_true",
+                        help="Extract resource files")
+    parser.add_argument("-t", "--targetdir", dest="targetdir", default=".",
+                        help="The directory where files will be extracted", metavar="DIR")
+    parser.add_argument("-a", "--extract-all", dest="extract_all", action="store_true",
+                        help="Extract all resource files")
+    parser.add_argument("-s", "--stdout", dest="stdout", action="store_true",
+                        help="Extract data to stdout")
+    parser.add_argument("-g", "--glob", metavar="PATTERN", dest="glob_pattern",
+                        help="Extract files by glob pattern")
+    parser.add_argument("-v", "--vfs", dest="vfs",
+                        help="Prefix of the resource files, can be 'resources' or 'german'")
 
-    parser.add_option("-e", "--extract",
-                      dest="extract_files", action="store_true",
-                      help="Extract resource files")
-
-    parser.add_option("-t", "--targetdir", dest="targetdir", default=".",
-                      help="The directory where files will be extracted", metavar="DIR")
-
-    parser.add_option("-a", "--extract-all", metavar="DIR",
-                      dest="extract_all", action="store_true",
-                      help="Extract all resource files")
-    parser.add_option("-s", "--stdout",
-                      dest="stdout", action="store_true",
-                      help="Extract data to stdout")
-    parser.add_option("-g", "--glob", metavar="PATTERN",
-                      dest="glob_pattern",
-                      help="Select files by glob pattern")
-
-    parser.add_option("-v", "--vfs",
-                      dest="vfs",
-                      help="Prefix of the resource files, can be 'resources' or 'german'")
-
-    return parser.parse_args()
+    return parser.parse_args(argv[1:])
 
 
 def main():
-    (options, args) = parse_args()
+    opts = parse_args(sys.argv)
 
-    if not options.vfs:
+    if not opts.vfs:
         print("error: vfs file not given", file=sys.stderr)
         exit(1)
 
-    with open(options.vfs, "rb") as fin:
+    with open(opts.vfs, "rb") as fin:
         magic = fin.read(4)
         root_dir_count  = struct.unpack("I", fin.read(4))[0]
         root_file_count = struct.unpack("I", fin.read(4))[0]
 
-        (parent, ext) = os.path.splitext(os.path.basename(options.vfs))
+        (parent, ext) = os.path.splitext(os.path.basename(opts.vfs))
 
         lst = []
         process_dir(fin, parent.encode(), root_dir_count, root_file_count, lst)
 
-        if options.extract_files:
-            if options.extract_all:
-                for (filename, offset, size) in lst:
-                    extract_file(fin, os.path.join(options.targetdir, filename.decode()), offset, size, options)
-            elif options.glob_pattern:
-                for (filename, offset, size) in lst:
-                    if fnmatch.fnmatch(filename.decode(), options.glob_pattern):
-                        extract_file(fin, os.path.join(options.targetdir, filename.decode()), offset, size, options)
+        if opts.extract_all:
+            for (filename, offset, size) in lst:
+                extract_file(fin, os.path.join(opts.targetdir, filename.decode()), offset, size, opts)
+        elif opts.glob_pattern:
+            for (filename, offset, size) in lst:
+                if fnmatch.fnmatch(filename.decode(), opts.glob_pattern):
+                    extract_file(fin, os.path.join(opts.targetdir, filename.decode()), offset, size, opts)
+        elif opts.extract_files:
+            if not opts.FILE:
+                print("error: no files given", file=sys.stderr)
             else:
-                for fname in args:
+                for fname in opts.FILE:
                     fname_enc = fname.encode()
                     for (filename, offset, size) in lst:
                         if fname_enc == filename:
-                            extract_file(fin, os.path.join(options.targetdir, filename.decode()), offset, size, options)
+                            extract_file(fin, os.path.join(opts.targetdir, filename.decode()), offset, size, opts)
                             break
                     else:
                          print("error: failed to extract {}".format(fname), file=sys.stderr)
