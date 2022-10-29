@@ -30,7 +30,7 @@ def process_dir(fin, parent, dir_count, file_count, lst):
     # process files
     for i in range(file_count):
         len = struct.unpack("B", fin.read(1))[0]
-        dir_entry = fin.read(len) # filename
+        dir_entry = fin.read(len)  # filename
 
         size = struct.unpack("I", fin.read(4))[0]
         unknown3 = struct.unpack("I", fin.read(4))[0]
@@ -43,16 +43,18 @@ def process_dir(fin, parent, dir_count, file_count, lst):
 
         lst.append((dir_entry, offset, size))
 
-        #print "%-55s - %6d %8d %8d - %2d %10d %10d" % (dir_entry,
-        #                                                     size, dummy, offset,
-        #                                                     zero, unknown1, unknown2)
+        if False:
+            print("%-55s - %6d %8d - %2d %10d %10d %10d" %
+                  (dir_entry,
+                   size, offset,
+                   zero, unknown1, unknown2, unknown3))
 
     # process dirs
     for j in range(dir_count):
         len = struct.unpack("B", fin.read(1))[0]
         file_entry = fin.read(len)
 
-        next_dir_count  = struct.unpack("I", fin.read(4))[0]
+        next_dir_count = struct.unpack("I", fin.read(4))[0]
         next_file_count = struct.unpack("I", fin.read(4))[0]
 
         process_dir(fin, os.path.join(parent, file_entry), next_dir_count, next_file_count, lst)
@@ -93,7 +95,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     return parser.parse_args(argv[1:])
 
 
-def main():
+def main() -> None:
     opts = parse_args(sys.argv)
 
     if not opts.vfs:
@@ -102,7 +104,10 @@ def main():
 
     with open(opts.vfs, "rb") as fin:
         magic = fin.read(4)
-        root_dir_count  = struct.unpack("I", fin.read(4))[0]
+        if magic != b'LP2C':
+            raise RuntimeError("not a VFS file, invalid file magic \"{}\"".format(magic.hex()))
+
+        root_dir_count = struct.unpack("I", fin.read(4))[0]
         root_file_count = struct.unpack("I", fin.read(4))[0]
 
         (parent, ext) = os.path.splitext(os.path.basename(opts.vfs))
@@ -129,7 +134,7 @@ def main():
                         extract_or_print(fin, os.path.join(opts.targetdir, filename.decode()), offset, size, opts)
                         break
                 else:
-                     print("error: failed to extract {}".format(fname), file=sys.stderr)
+                    print("error: failed to extract {}".format(fname), file=sys.stderr)
 
         if not opts.glob_pattern and not opts.FILE:  # extract all
             for (filename, offset, size) in lst:
