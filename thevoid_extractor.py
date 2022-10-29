@@ -79,12 +79,10 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("FILE", nargs='*')
     parser.add_argument("-l", "--list", dest="list_files", action="store_true",
                         help="List all resource files")
-    parser.add_argument("-e", "--extract", dest="extract_files", action="store_true",
+    parser.add_argument("-x", "--extract", dest="extract_files", action="store_true",
                         help="Extract resource files")
     parser.add_argument("-t", "--targetdir", dest="targetdir", default=".",
                         help="The directory where files will be extracted", metavar="DIR")
-    parser.add_argument("-a", "--extract-all", dest="extract_all", action="store_true",
-                        help="Extract all resource files")
     parser.add_argument("-s", "--stdout", dest="stdout", action="store_true",
                         help="Extract data to stdout")
     parser.add_argument("-g", "--glob", metavar="PATTERN", dest="glob_pattern",
@@ -112,28 +110,30 @@ def main():
         lst = []
         process_dir(fin, parent.encode(), root_dir_count, root_file_count, lst)
 
-        if opts.extract_all:
-            for (filename, offset, size) in lst:
-                extract_file(fin, os.path.join(opts.targetdir, filename.decode()), offset, size, opts)
-        elif opts.glob_pattern:
+        def extract_or_print(fin, filename, offset, size, opts):
+            if opts.extract_files:
+                extract_file(fin, os.path.join(opts.targetdir, filename), offset, size, opts)
+            else:
+                print("%10d  %10d  %-55s" % (offset, size, filename))
+
+        if opts.glob_pattern:  # extract pattern
             for (filename, offset, size) in lst:
                 if fnmatch.fnmatch(filename.decode(), opts.glob_pattern):
-                    extract_file(fin, os.path.join(opts.targetdir, filename.decode()), offset, size, opts)
-        elif opts.extract_files:
-            if not opts.FILE:
-                print("error: no files given", file=sys.stderr)
-            else:
-                for fname in opts.FILE:
-                    fname_enc = fname.encode()
-                    for (filename, offset, size) in lst:
-                        if fname_enc == filename:
-                            extract_file(fin, os.path.join(opts.targetdir, filename.decode()), offset, size, opts)
-                            break
-                    else:
-                         print("error: failed to extract {}".format(fname), file=sys.stderr)
-        else:
+                    extract_or_print(fin, os.path.join(opts.targetdir, filename.decode()), offset, size, opts)
+
+        if opts.FILE:
+            for fname in opts.FILE:
+                fname_enc = fname.encode()
+                for (filename, offset, size) in lst:
+                    if fname_enc == filename:
+                        extract_or_print(fin, os.path.join(opts.targetdir, filename.decode()), offset, size, opts)
+                        break
+                else:
+                     print("error: failed to extract {}".format(fname), file=sys.stderr)
+
+        if not opts.glob_pattern and not opts.FILE:  # extract all
             for (filename, offset, size) in lst:
-                print("%10d  %10d  %-55s" % (offset, size, filename.decode()))
+                extract_or_print(fin, os.path.join(opts.targetdir, filename.decode()), offset, size, opts)
 
 
 if __name__ == "__main__":
