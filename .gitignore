@@ -1,2 +1,6 @@
+*.bak
 *~
-data/
+/__pycache__/
+/data/
+/result
+/thevoid_extractor.egg-info/
