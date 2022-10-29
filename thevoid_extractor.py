@@ -17,20 +17,22 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from typing import Sequence
+from typing import Sequence, Tuple, BinaryIO
 
+import argparse
 import fnmatch
 import os
-import sys
 import struct
-import argparse
+import sys
+import logging
 
 
-def process_dir(fin, parent, dir_count, file_count, lst):
+def process_dir(fin: BinaryIO, parent: bytes, dir_count: int, file_count: int,
+                lst: list[Tuple[bytes, int, int]]) -> None:
     # process files
-    for i in range(file_count):
-        len = struct.unpack("B", fin.read(1))[0]
-        dir_entry = fin.read(len)  # filename
+    for _ in range(file_count):
+        length = struct.unpack("B", fin.read(1))[0]
+        dir_entry = fin.read(length)  # filename
 
         size = struct.unpack("I", fin.read(4))[0]
         unknown3 = struct.unpack("I", fin.read(4))[0]
@@ -43,16 +45,15 @@ def process_dir(fin, parent, dir_count, file_count, lst):
 
         lst.append((dir_entry, offset, size))
 
-        if False:
-            print("%-55s - %6d %8d - %2d %10d %10d %10d" %
-                  (dir_entry,
-                   size, offset,
-                   zero, unknown1, unknown2, unknown3))
+        logging.debug("%-55s - %6d %8d - %2d %10d %10d %10d" %
+                      (dir_entry.decode(),
+                       size, offset,
+                       zero, unknown1, unknown2, unknown3))
 
     # process dirs
-    for j in range(dir_count):
-        len = struct.unpack("B", fin.read(1))[0]
-        file_entry = fin.read(len)
+    for _ in range(dir_count):
+        length = struct.unpack("B", fin.read(1))[0]
+        file_entry = fin.read(length)
 
         next_dir_count = struct.unpack("I", fin.read(4))[0]
         next_file_count = struct.unpack("I", fin.read(4))[0]
@@ -60,12 +61,12 @@ def process_dir(fin, parent, dir_count, file_count, lst):
         process_dir(fin, os.path.join(parent, file_entry), next_dir_count, next_file_count, lst)
 
 
-def extract_file(fin, outfile, offset, size, options):
+def extract_file(fin: BinaryIO, outfile: str, offset: int, size: int, opts: argparse.Namespace) -> None:
     fin.seek(offset)
     data = fin.read(size)
 
-    if options.stdout:
-        sys.stdout.write(data)
+    if opts.stdout:
+        sys.stdout.buffer.write(data)
     else:
         print("extracting \"%s\"" % outfile)
         outdir = os.path.dirname(outfile)
@@ -99,8 +100,7 @@ def main() -> None:
     opts = parse_args(sys.argv)
 
     if not opts.vfs:
-        print("error: vfs file not given", file=sys.stderr)
-        exit(1)
+        raise RuntimeError("vfs file not given")
 
     with open(opts.vfs, "rb") as fin:
         magic = fin.read(4)
@@ -110,12 +110,12 @@ def main() -> None:
         root_dir_count = struct.unpack("I", fin.read(4))[0]
         root_file_count = struct.unpack("I", fin.read(4))[0]
 
-        (parent, ext) = os.path.splitext(os.path.basename(opts.vfs))
+        (parent, _) = os.path.splitext(os.path.basename(opts.vfs))
 
-        lst = []
+        lst: list[Tuple[bytes, int, int]] = []
         process_dir(fin, parent.encode(), root_dir_count, root_file_count, lst)
 
-        def extract_or_print(fin, filename, offset, size, opts):
+        def extract_or_print(fin: BinaryIO, filename: str, offset: int, size: int, opts: argparse.Namespace) -> None:
             if opts.extract_files:
                 extract_file(fin, os.path.join(opts.targetdir, filename), offset, size, opts)
             else:
