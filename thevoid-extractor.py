@@ -21,38 +21,6 @@ import sys
 import struct
 from optparse import OptionParser
 
-parser = OptionParser("Usage: %prog [OPTIONS] [FILES]")
-
-parser.add_option("-l", "--list",
-                  dest="list_files", action="store_true",
-                  help="List all resource files")
-
-parser.add_option("-e", "--extract",
-                  dest="extract_files", action="store_true",
-                  help="Extract resource files")
-
-parser.add_option("-t", "--targetdir", dest="targetdir", default=".",
-                  help="The directory where files will be extracted", metavar="DIR")
-
-parser.add_option("-a", "--extract-all", metavar="DIR",
-                  dest="extract_all", action="store_true",
-                  help="Extract all resource files")
-parser.add_option("-s", "--stdout",
-                  dest="stdout", action="store_true",
-                  help="Extract data to stdout")
-parser.add_option("-g", "--glob", metavar="PATTERN",
-                  dest="glob_pattern",
-                  help="Select files by glob pattern")
-
-parser.add_option("-v", "--vfs",
-                  dest="vfs",
-                  help="Prefix of the resource files, can be 'resources' or 'german'")
-
-(options, args) = parser.parse_args()
-
-if not options.vfs:
-    print("error: vfs file not given")
-    exit(1)
 
 def process_dir(fin, parent, dir_count, file_count, lst):
     # process files
@@ -85,7 +53,7 @@ def process_dir(fin, parent, dir_count, file_count, lst):
 
         process_dir(fin, os.path.join(parent, file_entry), next_dir_count, next_file_count, lst)
 
-def extract_file(fin, outfile, offset, size):
+def extract_file(fin, outfile, offset, size, options):
     fin.seek(offset)
     data = fin.read(size)
 
@@ -99,24 +67,68 @@ def extract_file(fin, outfile, offset, size):
         with open(outfile, "wb") as fout:
             fout.write(data)
 
-with open(options.vfs, "rb") as fin:
-    magic = fin.read(4)
-    root_dir_count  = struct.unpack("I", fin.read(4))[0]
-    root_file_count = struct.unpack("I", fin.read(4))[0]
 
-    (parent, ext) = os.path.splitext(os.path.basename(options.vfs))
+def parse_args():
+    parser = OptionParser("Usage: %prog [OPTIONS] [FILES]")
 
-    lst = []
-    process_dir(fin, parent, root_dir_count, root_file_count, lst)
+    parser.add_option("-l", "--list",
+                      dest="list_files", action="store_true",
+                      help="List all resource files")
 
-    if options.extract_files:
-        for (filename, offset, size) in lst:
-            if options.extract_all or \
-               (options.glob_pattern and fnmatch.fnmatch(filename, options.glob_pattern) ) or \
-               filename in args:
-                extract_file(fin, os.path.join(options.targetdir, filename), offset, size)
-    else:
-        for (filename, offset, size) in lst:
-            print("%6d %6d %-55s" % (offset, size, filename))
+    parser.add_option("-e", "--extract",
+                      dest="extract_files", action="store_true",
+                      help="Extract resource files")
+
+    parser.add_option("-t", "--targetdir", dest="targetdir", default=".",
+                      help="The directory where files will be extracted", metavar="DIR")
+
+    parser.add_option("-a", "--extract-all", metavar="DIR",
+                      dest="extract_all", action="store_true",
+                      help="Extract all resource files")
+    parser.add_option("-s", "--stdout",
+                      dest="stdout", action="store_true",
+                      help="Extract data to stdout")
+    parser.add_option("-g", "--glob", metavar="PATTERN",
+                      dest="glob_pattern",
+                      help="Select files by glob pattern")
+
+    parser.add_option("-v", "--vfs",
+                      dest="vfs",
+                      help="Prefix of the resource files, can be 'resources' or 'german'")
+
+    return parser.parse_args()
+
+
+def main():
+    (options, args) = parse_args()
+
+    if not options.vfs:
+        print("error: vfs file not given")
+        exit(1)
+
+    with open(options.vfs, "rb") as fin:
+        magic = fin.read(4)
+        root_dir_count  = struct.unpack("I", fin.read(4))[0]
+        root_file_count = struct.unpack("I", fin.read(4))[0]
+
+        (parent, ext) = os.path.splitext(os.path.basename(options.vfs))
+
+        lst = []
+        process_dir(fin, parent, root_dir_count, root_file_count, lst)
+
+        if options.extract_files:
+            for (filename, offset, size) in lst:
+                if options.extract_all or \
+                   (options.glob_pattern and fnmatch.fnmatch(filename, options.glob_pattern) ) or \
+                   filename in args:
+                    extract_file(fin, os.path.join(options.targetdir, filename), offset, size, options)
+        else:
+            for (filename, offset, size) in lst:
+                print("%6d %6d %-55s" % (offset, size, filename))
+
+
+if __name__ == "__main__":
+    main()
+
 
 # EOF #
