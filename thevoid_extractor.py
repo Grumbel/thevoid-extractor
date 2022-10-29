@@ -53,6 +53,7 @@ def process_dir(fin, parent, dir_count, file_count, lst):
 
         process_dir(fin, os.path.join(parent, file_entry), next_dir_count, next_file_count, lst)
 
+
 def extract_file(fin, outfile, offset, size, options):
     fin.seek(offset)
     data = fin.read(size)
@@ -103,7 +104,7 @@ def main():
     (options, args) = parse_args()
 
     if not options.vfs:
-        print("error: vfs file not given")
+        print("error: vfs file not given", file=sys.stderr)
         exit(1)
 
     with open(options.vfs, "rb") as fin:
@@ -117,14 +118,25 @@ def main():
         process_dir(fin, parent.encode(), root_dir_count, root_file_count, lst)
 
         if options.extract_files:
-            for (filename, offset, size) in lst:
-                if options.extract_all or \
-                   (options.glob_pattern and fnmatch.fnmatch(filename, options.glob_pattern) ) or \
-                   filename in args:
-                    extract_file(fin, os.path.join(options.targetdir, filename), offset, size, options)
+            if options.extract_all:
+                for (filename, offset, size) in lst:
+                    extract_file(fin, os.path.join(options.targetdir, filename.decode()), offset, size, options)
+            elif options.glob_pattern:
+                for (filename, offset, size) in lst:
+                    if fnmatch.fnmatch(filename.decode(), options.glob_pattern):
+                        extract_file(fin, os.path.join(options.targetdir, filename.decode()), offset, size, options)
+            else:
+                for fname in args:
+                    fname_enc = fname.encode()
+                    for (filename, offset, size) in lst:
+                        if fname_enc == filename:
+                            extract_file(fin, os.path.join(options.targetdir, filename.decode()), offset, size, options)
+                            break
+                    else:
+                         print("error: failed to extract {}".format(fname), file=sys.stderr)
         else:
             for (filename, offset, size) in lst:
-                print("%6d %6d %-55s" % (offset, size, filename))
+                print("%10d  %10d  %-55s" % (offset, size, filename.decode()))
 
 
 if __name__ == "__main__":
