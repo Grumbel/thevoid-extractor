@@ -90,7 +90,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
                         help="Extract data to stdout")
     parser.add_argument("-g", "--glob", metavar="PATTERN", dest="glob_pattern",
                         help="Extract files by glob pattern")
-    parser.add_argument("-v", "--vfs", dest="vfs",
+    parser.add_argument("-v", "--vfs", dest="vfs", required=True,
                         help=".vfs file to process (e.g. \".../The Void/data/Sound.vfs\")")
 
     return parser.parse_args(argv[1:])
@@ -98,9 +98,6 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
 
 def main() -> None:
     opts = parse_args(sys.argv)
-
-    if not opts.vfs:
-        raise RuntimeError("vfs file not given")
 
     with open(opts.vfs, "rb") as fin:
         magic = fin.read(4)
