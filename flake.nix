@@ -2,7 +2,7 @@
   description = "File extractor for the game The Void";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs?ref=nixos-24.05";
+    nixpkgs.url = "github:NixOS/nixpkgs?ref=nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -10,7 +10,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        pythonPackages = pkgs.python310Packages;
+        pythonPackages = pkgs.python3Packages;
       in rec {
         packages = rec {
           default = thevoid-extractor;
@@ -20,6 +20,9 @@
             version = "0.1.0";
 
             src = ./.;
+
+            pyproject = true;
+            build-system = [ pythonPackages.setuptools ];
 
             checkPhase = ''
               runHook preCheck
