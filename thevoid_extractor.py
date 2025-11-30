@@ -70,36 +70,68 @@ def extract_file(fin: BinaryIO, outfile: str, offset: int, size: int, opts: argp
     else:
         print("extracting \"%s\"" % outfile)
         outdir = os.path.dirname(outfile)
-        if not os.path.exists(outdir):
-            os.makedirs(outdir)
+        os.makedirs(outdir, exist_ok=True)
         with open(outfile, "wb") as fout:
             fout.write(data)
 
 
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="'The Void' datafile extraction tool")
+    parser = argparse.ArgumentParser(
+        prog=argv[0],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="'The Void' datafile extraction tool",
+        epilog=f"""
+examples:
+  List the VFS content:
+    {argv[0]} --list "The Void/data/Sound.vfs"
 
-    parser.add_argument("FILE", nargs='*')
-    parser.add_argument("-l", "--list", dest="list_files", action="store_true",
-                        help="List all resource files")
-    parser.add_argument("-x", "--extract", dest="extract_files", action="store_true",
-                        help="Extract resource files")
-    parser.add_argument("-t", "--targetdir", dest="targetdir", default=".",
-                        help="The directory where files will be extracted", metavar="DIR")
-    parser.add_argument("-s", "--stdout", dest="stdout", action="store_true",
-                        help="Extract data to stdout")
-    parser.add_argument("-g", "--glob", metavar="PATTERN", dest="glob_pattern",
-                        help="Extract files by glob pattern")
-    parser.add_argument("-v", "--vfs", dest="vfs", required=True,
-                        help=".vfs file to process (e.g. \".../The Void/data/Sound.vfs\")")
+  Extract the VFS content:
+    {argv[0]} --extract "The Void/data/Sound.vfs" --outputdir extracted/
 
-    return parser.parse_args(argv[1:])
+  Extract only `.ogg` files using a glob:
+    {argv[0]} --extract "The Void/data/Sound.vfs" --outputdir extracted/ -g "*.ogg"
+""")
+
+    parser.add_argument(
+        "VFSFILE",
+        help=".vfs file to process (e.g. \".../The Void/data/Sound.vfs\")")
+    parser.add_argument(
+        "ENTRYTOEXTRACT", nargs='*',
+        help="individual entry to extract, extract all by default"
+    )
+
+    action_group = parser.add_argument_group('actions').add_mutually_exclusive_group(required=True)
+    action_group.add_argument(
+        "-l", "--list", dest="action_list", action="store_true",
+        help="List all resource files")
+    action_group.add_argument(
+        "-x", "--extract", dest="action_extract", action="store_true",
+        help="Extract resource files")
+
+    option_group = parser.add_argument_group('options')
+    option_group.add_argument(
+        "-o", "--outputdir", dest="outputdir", default=None,
+        help="The directory where files will be extracted", metavar="DIR")
+    option_group.add_argument(
+        "-s", "--stdout", dest="stdout", action="store_true",
+        help="Extract data to stdout")
+    option_group.add_argument(
+        "-g", "--glob", metavar="PATTERN", dest="glob_pattern",
+        help="Extract entries by glob pattern")
+
+    opts = parser.parse_args(argv[1:])
+
+    print(f"{opts.action_extract!r} {opts.outputdir!r}")
+    if opts.action_extract and not opts.outputdir:
+        parser.error("--outputdir required for extraction")
+
+    return opts
 
 
 def main() -> None:
     opts = parse_args(sys.argv)
 
-    with open(opts.vfs, "rb") as fin:
+    with open(opts.VFSFILE, "rb") as fin:
         magic = fin.read(4)
         if magic != b'LP2C':
             raise RuntimeError("not a VFS file, invalid file magic \"{}\"".format(magic.hex()))
@@ -107,35 +139,34 @@ def main() -> None:
         root_dir_count = struct.unpack("I", fin.read(4))[0]
         root_file_count = struct.unpack("I", fin.read(4))[0]
 
-        (parent, _) = os.path.splitext(os.path.basename(opts.vfs))
+        (parent, _) = os.path.splitext(os.path.basename(opts.VFSFILE))
 
         lst: list[Tuple[bytes, int, int]] = []
         process_dir(fin, parent.encode(), root_dir_count, root_file_count, lst)
 
         def extract_or_print(fin: BinaryIO, filename: str, offset: int, size: int, opts: argparse.Namespace) -> None:
-            if opts.extract_files:
-                extract_file(fin, os.path.join(opts.targetdir, filename), offset, size, opts)
-            else:
+            if opts.action_extract:
+                extract_file(fin, os.path.join(opts.outputdir, filename), offset, size, opts)
+            else:  # opts.action_list
                 print("%10d  %10d  %-55s" % (offset, size, filename))
 
         if opts.glob_pattern:  # extract pattern
             for (filename, offset, size) in lst:
                 if fnmatch.fnmatch(filename.decode(), opts.glob_pattern):
-                    extract_or_print(fin, os.path.join(opts.targetdir, filename.decode()), offset, size, opts)
+                    extract_or_print(fin, filename.decode(), offset, size, opts)
 
-        if opts.FILE:
-            for fname in opts.FILE:
-                fname_enc = fname.encode()
-                for (filename, offset, size) in lst:
-                    if fname_enc == filename:
-                        extract_or_print(fin, os.path.join(opts.targetdir, filename.decode()), offset, size, opts)
+        elif opts.ENTRYTOEXTRACT:
+            for entrytoextract in opts.ENTRYTOEXTRACT:
+                for (entry, offset, size) in lst:
+                    if entrytoextract.encode() == entry:
+                        extract_or_print(fin, entry.decode(), offset, size, opts)
                         break
                 else:
-                    print("error: failed to extract {}".format(fname), file=sys.stderr)
+                    print("error: failed to extract {}".format(entrytoextract), file=sys.stderr)
 
-        if not opts.glob_pattern and not opts.FILE:  # extract all
+        else:  # extract all
             for (filename, offset, size) in lst:
-                extract_or_print(fin, os.path.join(opts.targetdir, filename.decode()), offset, size, opts)
+                extract_or_print(fin, filename.decode(), offset, size, opts)
 
 
 if __name__ == "__main__":

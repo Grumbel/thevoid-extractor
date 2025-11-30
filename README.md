@@ -1,45 +1,63 @@
-The Void Extractor
-==================
+# The Void Extractor
 
-Simple command line extractor for the data files of the game
-[The Void](http://www.tension-game.com/).
+A simple command-line tool to extract resource files from **[The Void](https://store.steampowered.com/app/37000/The_Void/)** game `.vfs`
+bundles (the uncompressed resource-packed files used by the game).
 
-Datafiles come in the form of `.vfs` files in The Void, each of those
-bundles a directory in uncompressed form. Modding should be possible
-by simply having a plain directory with the same name next to the .vfs
-file.
+This repository contains `thevoid_extractor.py` — a small Python 3 script that
+reads `.vfs` files (file magic `LP2C`) and can list or extract embedded files.
 
-You can extract everything (`-x`), name files to extract explicitly or
-extract by glob pattern (`--glob "*.ogg"`). Example usage would look
-like this:
+## Requirements
 
-    ./thevoid_extractor.py \
-        -v ~/games/SteamLibrary/steamapps/common/The\ Void/data/Sounds.vfs \
-        --targetdir data/ -x
+* Python 3.8+
+* No further external dependencies
 
-If `--targetdir` is not given files will be extracted to the current
-working directory.
+## Quick start
 
+```sh
+python3 thevoid_extractor.py <VFSFILE> [FILES...]
+```
 
-Usage
------
+## Usage
 
-    usage: thevoid_extractor.py [-h] [-l] [-x] [-t DIR] [-a] [-s] [-g PATTERN] [-v VFS] [FILE ...]
-    
-    'The Void' datafile extraction tool
-    
-    positional arguments:
-      FILE
-    
-    optional arguments:
-      -h, --help            show this help message and exit
-      -l, --list            List all resource files
-      -x, --extract         Extract resource files
-      -t DIR, --targetdir DIR
-                            The directory where files will be extracted
-      -a, --extract-all     Extract all resource files
-      -s, --stdout          Extract data to stdout
-      -g PATTERN, --glob PATTERN
-                            Extract files by glob pattern
-      -v VFS, --vfs VFS     Prefix of the resource files, can be 'resources' or 'german'
-    
+```txt
+thevoid-extractor [-h] (-l | -x) [-o DIR] [-s] [-g PATTERN] VFSFILE [ENTRYTOEXTRACT ...]
+
+'The Void' datafile extraction tool
+
+positional arguments:
+  VFSFILE              .vfs file to process (e.g. ".../The Void/data/Sound.vfs")
+  ENTRYTOEXTRACT       individual entry to extract, extract all by default
+
+options:
+  -h, --help           show this help message and exit
+
+actions:
+  -l, --list           List all resource files
+  -x, --extract        Extract resource files
+
+options:
+  -o, --outputdir DIR  The directory where files will be extracted
+  -s, --stdout         Extract data to stdout
+  -g, --glob PATTERN   Extract entries by glob pattern
+
+```
+
+## Examples
+
+List the VFS content:
+
+```sh
+python3 thevoid_extractor.py "The Void/data/Sound.vfs" -l
+```
+
+Extract the complete VFS content:
+
+```sh
+python3 thevoid_extractor.py "The Void/data/Sound.vfs" -x --outputdir extracted/
+```
+
+Extract only `.ogg` files using a glob:
+
+```sh
+python3 thevoid_extractor.py "The Void/data/Sound.vfs" -x --outputdir extracted/ -g "*.ogg"
+```
