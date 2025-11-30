@@ -47,17 +47,17 @@ options:
 List the VFS content:
 
 ```sh
-python3 thevoid_extractor.py "The Void/data/Sound.vfs" -l
+python3 thevoid_extractor.py --list "The Void/data/Sound.vfs"
 ```
 
 Extract the complete VFS content:
 
 ```sh
-python3 thevoid_extractor.py "The Void/data/Sound.vfs" -x --outputdir extracted/
+python3 thevoid_extractor.py --extract "The Void/data/Sound.vfs" --outputdir extracted/
 ```
 
 Extract only `.ogg` files using a glob:
 
 ```sh
-python3 thevoid_extractor.py "The Void/data/Sound.vfs" -x --outputdir extracted/ -g "*.ogg"
+python3 thevoid_extractor.py --extract "The Void/data/Sound.vfs" --glob "*.ogg" --outputdir extracted/
 ```
